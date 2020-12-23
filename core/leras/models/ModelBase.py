@@ -18,6 +18,10 @@ class ModelBase(nn.Saveable):
         if isinstance (layer, list):
             for i,sublayer in enumerate(layer):
                 self._build_sub(sublayer, f"{name}_{i}")
+        elif isinstance (layer, dict):
+            for subname in layer.keys():
+                sublayer = layer[subname]
+                self._build_sub(sublayer, f"{name}_{subname}")
         elif isinstance (layer, nn.LayerBase) or \
                 isinstance (layer, ModelBase):
 
@@ -32,7 +36,7 @@ class ModelBase(nn.Saveable):
 
             self.layers.append (layer)
             self.layers_by_name[layer.name] = layer
-            
+
     def xor_list(self, lst1, lst2):
         return  [value for value in lst1+lst2 if (value not in lst1) or (value not in lst2)  ]
 
@@ -79,7 +83,7 @@ class ModelBase(nn.Saveable):
 
     def get_layer_by_name(self, name):
         return self.layers_by_name.get(name, None)
-        
+
     def get_layers(self):
         if not self.built:
             self.build()
@@ -112,41 +116,32 @@ class ModelBase(nn.Saveable):
 
         return self.forward(*args, **kwargs)
 
-    def compute_output_shape(self, shapes):
-        if not self.built:
-            self.build()
+    # def compute_output_shape(self, shapes):
+    #     if not self.built:
+    #         self.build()
 
-        not_list = False
-        if not isinstance(shapes, list):
-            not_list = True
-            shapes = [shapes]
+    #     not_list = False
+    #     if not isinstance(shapes, list):
+    #         not_list = True
+    #         shapes = [shapes]
 
-        with tf.device('/CPU:0'):
-            # CPU tensors will not impact any performance, only slightly RAM "leakage"
-            phs = []
-            for dtype,sh in shapes:
-                phs += [ tf.placeholder(dtype, sh) ]
+    #     with tf.device('/CPU:0'):
+    #         # CPU tensors will not impact any performance, only slightly RAM "leakage"
+    #         phs = []
+    #         for dtype,sh in shapes:
+    #             phs += [ tf.placeholder(dtype, sh) ]
 
-            result = self.__call__(phs[0] if not_list else phs)
+    #         result = self.__call__(phs[0] if not_list else phs)
 
-            if not isinstance(result, list):
-                result = [result]
+    #         if not isinstance(result, list):
+    #             result = [result]
 
-            result_shapes = []
+    #         result_shapes = []
 
-            for t in result:
-                result_shapes += [ t.shape.as_list() ]
+    #         for t in result:
+    #             result_shapes += [ t.shape.as_list() ]
 
-            return result_shapes[0] if not_list else result_shapes
-
-    def compute_output_channels(self, shapes):
-        shape = self.compute_output_shape(shapes)
-        shape_len = len(shape)
-
-        if shape_len == 4:
-            if nn.data_format == "NCHW":
-                return shape[1]
-        return shape[-1]
+    #         return result_shapes[0] if not_list else result_shapes
 
     def build_for_run(self, shapes_list):
         if not isinstance(shapes_list, list):
